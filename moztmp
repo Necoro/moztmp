@@ -1,0 +1,146 @@
+#!/sbin/runscript
+
+opts="save load"
+
+depend() {
+    need localmount
+    after bootmisc
+}
+
+MOZMOUNT=${MOZMOUNT:-/tmp/moztmp/}
+MOZDIR=${MOZDIR:-.mozilla}
+MOZSAVEDIR=${MOZSAVEDIR:-.mozilla_save}
+
+homedir() {
+    echo $(eval echo ~$1)
+}
+
+get_size() {
+    local size=0
+    for u in $USERS; do
+        local dir=$(homedir $u)/${MOZDIR}
+        if [ -d $dir ]; then
+            s=$(du -s $dir | cut -f 1)
+            size=$(( size + s ))
+        else 
+            if [ -e $dir ]; then
+                echo "$home is not a directory!"
+            
+            else
+                # save default: 50 MB
+                size=$(( size + 51200 ))
+            fi
+        fi
+    done
+
+    size=$(( size * 2 ))
+    veinfo "Taking ${size}k as the size."
+    
+    echo $size
+}
+
+set_folder() {
+    local user=$1
+    local mdir=$(homedir $u)/$MOZDIR
+    local sdir=$(homedir $u)/$MOZSAVEDIR
+    local mntdir=$MOZMOUNT/$user
+
+    if [ -e $sdir ]; then
+        eerror "$sdir already existing. Skipping user $user."
+        return 1
+    else
+        checkpath -d -o $user $mntdir || return 1
+      
+        if [ -e $mdir ]; then
+            mv $mdir $sdir || return 1
+        fi
+                
+        if ! ln -s $mntdir $mdir; then
+            rm -f $mdir
+            [ -e $sdir ] && mv $sdir $mdir
+            eerror "Linking failed"
+            return 1
+        fi
+        
+        einfo "Rsyncing"
+        if ! rsync -qai --delete $sdir/ $mntdir ; then
+            rm -f $mdir
+            [ -e $sdir ] && mv $sdir $mdir
+            eerror "RSync failed"
+            return 1
+        fi
+
+    fi
+
+    return 0
+}
+
+get_folder() {
+    local user=$1
+    local mdir=$(homedir $u)/$MOZDIR
+    local sdir=$(homedir $u)/$MOZSAVEDIR
+    local mntdir=$MOZMOUNT/$user
+
+    if [ ! -L $mdir ]; then
+        eerror "$mdir is not a link. Skipping user $user."
+        return 1
+    else
+        rm $mdir
+        einfo "Rsyncing"
+        rsync -aiq --delete $mntdir/ $sdir/ || return 1
+        mv $sdir $mdir
+    fi
+
+    return 0
+}
+
+save() {
+    for u in $USERS; do
+        ebegin "Deleting moztmp for user $u"
+        eindent
+        get_folder $u
+        eoutdent
+        eend $?
+    done
+
+    if yesno $(service_get_value mnted); then
+        ebegin "Unmounting ${MOZMOUNT}"
+        umount ${MOZMOUNT}
+        eend $?
+    fi
+}
+
+load() {
+    local size=$(get_size)
+
+    if ! mountinfo -q ${MOZMOUNT}; then
+        ebegin "Mounting ${MOZMOUNT}"
+        checkpath -d ${MOZMOUNT}
+        mount -t tmpfs -o size=${size}k tmpfs ${MOZMOUNT}
+        eend $?
+        
+        service_set_value mnted YES
+    else
+        service_set_value mnted NO
+    fi
+
+    for u in $USERS; do
+        ebegin "Setting moztmp for user $u"
+        eindent
+        set_folder $u
+        eoutdent
+        eend $?
+    done
+            
+    return 0
+}
+
+start() {
+    load
+}
+
+stop() {
+    save
+}
+
+# vim:ft=gentoo-init-d
