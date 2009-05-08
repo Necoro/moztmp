@@ -121,13 +121,13 @@ stop() {
         eend $ret
     done
 
-    if yesno $(service_get_value mnted); then
+    if yesno $(service_get_value mounted); then
         ebegin "Unmounting $mountdir"
         umount "${mountdir}"
         eend $?
     fi
 
-    if yesno $(service_get_value dirmk); then
+    if yesno $(service_get_value mkdir); then
         rmdir "${mountdir}"
     fi
 }
@@ -144,9 +144,9 @@ start() {
 
     if yesno ${MOZ_MKDIR}; then
         checkpath -d "${MOZ_MOUNTDIR}"
-        service_set_value dirmk YES
+        service_set_value mkdir YES
     else
-        service_set_value dirmk NO
+        service_set_value mkdir NO
     fi
 
     if yesno ${MOZ_MOUNT} && ! mountinfo -q "${MOZ_MOUNTDIR}"; then
@@ -155,9 +155,9 @@ start() {
         mount -t tmpfs -o size=${size}k tmpfs "${MOZ_MOUNTDIR}"
         eend $?
         
-        service_set_value mnted YES
+        service_set_value mounted YES
     else
-        service_set_value mnted NO
+        service_set_value mounted NO
     fi
 
     for u in ${MOZ_USERS}; do
