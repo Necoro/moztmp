@@ -22,14 +22,13 @@ homedir() {
 get_size() {
     local size=0
     for u in ${MOZ_USERS}; do
-        local dir=$(homedir $u)/${MOZ_DIR}
-        if [ -d $dir ]; then
-            s=$(du -s $dir | cut -f 1)
+        local dir="$(homedir $u)/${MOZ_DIR}"
+        if [ -d "$dir" ]; then
+            s=$(du -s "$dir" | cut -f 1)
             size=$(( size + s ))
         else 
-            if [ -e $dir ]; then
-                echo "$home is not a directory!"
-            
+            if [ -e "$dir" ]; then
+                eerror "$dir is not a directory!"            
             else
                 # save default: 50 MB
                 size=$(( size + 51200 ))
@@ -46,31 +45,37 @@ get_size() {
 # Move folder to mounted dir for one user
 folder_to_mnt() {
     local user=$1
-    local mdir=$(homedir $u)/${MOZ_DIR}
-    local sdir=$(homedir $u)/${MOZ_SAVEDIR}
-    local mntdir=${MOZ_MOUNTDIR}/${user}
+    local mdir="$(homedir $u)/${MOZ_DIR}"
+    local sdir="$(homedir $u)/${MOZ_SAVEDIR}"
+    local mntdir="${MOZ_MOUNTDIR}/${user}"
 
-    if [ -e $sdir ]; then
+    if [ -e "$sdir" ]; then
         eerror "$sdir already existing. Skipping user $user."
         return 1
     else
-        checkpath -d -o $user $mntdir || return 1
       
-        if [ -e $mdir ]; then
-            mv $mdir $sdir || return 1
+        if [ -e "$mdir" ]; then
+            [ ! -d "$mdir" ] && return 1
+            mv "$mdir" "$sdir" || return 1
         fi
-                
-        if ! ln -s $mntdir $mdir; then
-            rm -f $mdir
-            [ -e $sdir ] && mv $sdir $mdir
+        
+        if ! checkpath -d -o $user "$mntdir"; then
+            [ -e "$sdir" ] && mv "$sdir" "$mdir"
+            eerror "Creating moztmp directory failed."
+            return 1
+        fi
+        
+        if ! ln -s "$mntdir" "$mdir"; then
+            rm -f "$mdir"
+            [ -e "$sdir" ] && mv "$sdir" "$mdir"
             eerror "Linking failed"
             return 1
         fi
         
         einfo "Rsyncing"
-        if ! rsync -qai --delete $sdir/ $mntdir ; then
-            rm -f $mdir
-            [ -e $sdir ] && mv $sdir $mdir
+        if ! rsync -qai --delete "$sdir/" "$mntdir" ; then
+            rm -f "$mdir"
+            [ -e "$sdir" ] && mv "$sdir" "$mdir"
             eerror "RSync failed"
             return 1
         fi
@@ -83,56 +88,71 @@ folder_to_mnt() {
 # Moves folder from mnt back to the home dir
 folder_to_home() {
     local user=$1
-    local mdir=$(homedir $u)/${MOZ_DIR}
-    local sdir=$(homedir $u)/${MOZ_SAVEDIR}
-    local mntdir=${MOZ_MOUNTDIR}/${user}
+    local mdir="$(homedir $u)/$(service_get_value mozdir)"
+    local sdir="$(homedir $u)/$(service_get_value mozsavedir)"
+    local mntdir="$(service_get_value mountdir)/${user}"
 
-    if [ ! -L $mdir ]; then
+    if [ ! -L "$mdir" ]; then
         eerror "$mdir is not a link. Skipping user $user."
         return 1
     else
-        rm $mdir
+        rm "$mdir"
         einfo "Rsyncing"
-        rsync -aiq --delete $mntdir/ $sdir/ || return 1
-        mv $sdir $mdir
+        rsync -aiq --delete "$mntdir/" "$sdir/" || return 1
+        mv "$sdir" "$mdir"
     fi
 
     return 0
 }
 
 stop() {
-    for u in ${MOZ_USERS}; do
+
+    local mountdir="$(service_get_value mountdir)"
+    local ret=
+
+    for u in $(service_get_value users); do
         ebegin "Deleting moztmp for user $u"
         eindent
+        
         folder_to_home $u
+        ret=$?
+
         eoutdent
-        eend $?
+        eend $ret
     done
 
     if yesno $(service_get_value mnted); then
-        ebegin "Unmounting ${MOZ_MOUNTDIR}"
-        umount ${MOZ_MOUNTDIR}
+        ebegin "Unmounting $mountdir"
+        umount "${mountdir}"
         eend $?
     fi
 
     if yesno $(service_get_value dirmk); then
-        rmdir ${MOZ_MOUNTDIR}
+        rmdir "${mountdir}"
     fi
 }
 
 start() {
 
+    local ret=
+
+    # save values to have them during shutdown
+    service_set_value users "$MOZ_USERS"
+    service_set_value mountdir "$MOZ_MOUNTDIR"
+    service_set_value mozdir "$MOZ_DIR"
+    service_set_value mozsavedir "$MOZ_SAVEDIR"
+
     if yesno ${MOZ_MKDIR}; then
-        checkpath -d ${MOZ_MOUNTDIR}
+        checkpath -d "${MOZ_MOUNTDIR}"
         service_set_value dirmk YES
     else
         service_set_value dirmk NO
     fi
 
-    if yesno ${MOZ_MOUNT} && ! mountinfo -q ${MOZ_MOUNTDIR}; then
+    if yesno ${MOZ_MOUNT} && ! mountinfo -q "${MOZ_MOUNTDIR}"; then
         local size=$(get_size)
         ebegin "Mounting ${MOZ_MOUNTDIR}"
-        mount -t tmpfs -o size=${size}k tmpfs ${MOZ_MOUNTDIR}
+        mount -t tmpfs -o size=${size}k tmpfs "${MOZ_MOUNTDIR}"
         eend $?
         
         service_set_value mnted YES
@@ -143,9 +163,12 @@ start() {
     for u in ${MOZ_USERS}; do
         ebegin "Setting moztmp for user $u"
         eindent
+
         folder_to_mnt $u
+        ret=$?
+        
         eoutdent
-        eend $?
+        eend $ret
     done
             
     return 0
