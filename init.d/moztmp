@@ -1,13 +1,11 @@
 #!/sbin/runscript
 
-opts="save load"
-
 depend() {
     need localmount
     after bootmisc
 }
 
-MOZ_MOUNT=${MOZ_MOUNT:-/tmp/moztmp/}
+MOZ_MOUNTDIR=${MOZ_MOUNT:-/tmp/moztmp/}
 MOZ_DIR=${MOZ_DIR:-.mozilla}
 MOZ_SAVEDIR=${MOZ_SAVEDIR:-.mozilla_save}
 
@@ -17,7 +15,7 @@ homedir() {
 
 get_size() {
     local size=0
-    for u in $MOZ_USERS; do
+    for u in ${MOZ_USERS}; do
         local dir=$(homedir $u)/${MOZ_DIR}
         if [ -d $dir ]; then
             s=$(du -s $dir | cut -f 1)
@@ -41,9 +39,9 @@ get_size() {
 
 set_folder() {
     local user=$1
-    local mdir=$(homedir $u)/$MOZ_DIR
-    local sdir=$(homedir $u)/$MOZ_SAVEDIR
-    local mntdir=$MOZ_MOUNT/$user
+    local mdir=$(homedir $u)/${MOZ_DIR}
+    local sdir=$(homedir $u)/${MOZ_SAVEDIR}
+    local mntdir=${MOZ_MOUNTDIR}/${user}
 
     if [ -e $sdir ]; then
         eerror "$sdir already existing. Skipping user $user."
@@ -77,9 +75,9 @@ set_folder() {
 
 get_folder() {
     local user=$1
-    local mdir=$(homedir $u)/$MOZ_DIR
-    local sdir=$(homedir $u)/$MOZ_SAVEDIR
-    local mntdir=$MOZ_MOUNT/$user
+    local mdir=$(homedir $u)/${MOZ_DIR}
+    local sdir=$(homedir $u)/${MOZ_SAVEDIR}
+    local mntdir=${MOZ_MOUNTDIR}/${user}
 
     if [ ! -L $mdir ]; then
         eerror "$mdir is not a link. Skipping user $user."
@@ -94,8 +92,8 @@ get_folder() {
     return 0
 }
 
-save() {
-    for u in $MOZ_USERS; do
+stop() {
+    for u in ${MOZ_USERS}; do
         ebegin "Deleting moztmp for user $u"
         eindent
         get_folder $u
@@ -104,19 +102,19 @@ save() {
     done
 
     if yesno $(service_get_value mnted); then
-        ebegin "Unmounting ${MOZ_MOUNT}"
-        umount ${MOZ_MOUNT}
+        ebegin "Unmounting ${MOZ_MOUNTDIR}"
+        umount ${MOZ_MOUNTDIR}
         eend $?
     fi
 }
 
-load() {
-    local size=$(get_size)
+start() {
 
-    if ! mountinfo -q ${MOZ_MOUNT}; then
-        ebegin "Mounting ${MOZ_MOUNT}"
-        checkpath -d ${MOZ_MOUNT}
-        mount -t tmpfs -o size=${size}k tmpfs ${MOZ_MOUNT}
+    if yesno ${MOZ_MOUNT} && ! mountinfo -q ${MOZ_MOUNTDIR}; then
+        local size=$(get_size)
+        ebegin "Mounting ${MOZ_MOUNTDIR}"
+        checkpath -d ${MOZ_MOUNTDIR}
+        mount -t tmpfs -o size=${size}k tmpfs ${MOZ_MOUNTDIR}
         eend $?
         
         service_set_value mnted YES
@@ -124,7 +122,7 @@ load() {
         service_set_value mnted NO
     fi
 
-    for u in $MOZ_USERS; do
+    for u in ${MOZ_USERS}; do
         ebegin "Setting moztmp for user $u"
         eindent
         set_folder $u
@@ -133,14 +131,6 @@ load() {
     done
             
     return 0
-}
-
-start() {
-    load
-}
-
-stop() {
-    save
 }
 
 # vim:ft=gentoo-init-d

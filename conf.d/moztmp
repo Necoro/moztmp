@@ -1,1 +1,17 @@
-USERS="necoro root"
+# The users whose mozilla directory should be moved
+MOZ_USERS="root necoro"
+
+# The mozilla directory in each home directory
+MOZ_DIR=.mozilla
+
+# The name of the directory which should be a backup,
+# while it is placed in RAM
+MOZ_SAVEDIR=.mozilla_save
+
+# Directory where the ramdisk should be mounted
+MOZ_MOUNTDIR=/tmp/moztmp
+
+# Enable mounting. Disable this, if $MOZ_MOUNTDIR is already in a ramdisk, f.ex.
+MOZ_MOUNT=YES
+
+# vim:ft=gentoo-conf-d
