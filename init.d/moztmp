@@ -7,9 +7,9 @@ depend() {
     after bootmisc
 }
 
-MOZMOUNT=${MOZMOUNT:-/tmp/moztmp/}
-MOZDIR=${MOZDIR:-.mozilla}
-MOZSAVEDIR=${MOZSAVEDIR:-.mozilla_save}
+MOZ_MOUNT=${MOZ_MOUNT:-/tmp/moztmp/}
+MOZ_DIR=${MOZ_DIR:-.mozilla}
+MOZ_SAVEDIR=${MOZ_SAVEDIR:-.mozilla_save}
 
 homedir() {
     echo $(eval echo ~$1)
@@ -17,8 +17,8 @@ homedir() {
 
 get_size() {
     local size=0
-    for u in $USERS; do
-        local dir=$(homedir $u)/${MOZDIR}
+    for u in $MOZ_USERS; do
+        local dir=$(homedir $u)/${MOZ_DIR}
         if [ -d $dir ]; then
             s=$(du -s $dir | cut -f 1)
             size=$(( size + s ))
@@ -41,9 +41,9 @@ get_size() {
 
 set_folder() {
     local user=$1
-    local mdir=$(homedir $u)/$MOZDIR
-    local sdir=$(homedir $u)/$MOZSAVEDIR
-    local mntdir=$MOZMOUNT/$user
+    local mdir=$(homedir $u)/$MOZ_DIR
+    local sdir=$(homedir $u)/$MOZ_SAVEDIR
+    local mntdir=$MOZ_MOUNT/$user
 
     if [ -e $sdir ]; then
         eerror "$sdir already existing. Skipping user $user."
@@ -77,9 +77,9 @@ set_folder() {
 
 get_folder() {
     local user=$1
-    local mdir=$(homedir $u)/$MOZDIR
-    local sdir=$(homedir $u)/$MOZSAVEDIR
-    local mntdir=$MOZMOUNT/$user
+    local mdir=$(homedir $u)/$MOZ_DIR
+    local sdir=$(homedir $u)/$MOZ_SAVEDIR
+    local mntdir=$MOZ_MOUNT/$user
 
     if [ ! -L $mdir ]; then
         eerror "$mdir is not a link. Skipping user $user."
@@ -95,7 +95,7 @@ get_folder() {
 }
 
 save() {
-    for u in $USERS; do
+    for u in $MOZ_USERS; do
         ebegin "Deleting moztmp for user $u"
         eindent
         get_folder $u
@@ -104,8 +104,8 @@ save() {
     done
 
     if yesno $(service_get_value mnted); then
-        ebegin "Unmounting ${MOZMOUNT}"
-        umount ${MOZMOUNT}
+        ebegin "Unmounting ${MOZ_MOUNT}"
+        umount ${MOZ_MOUNT}
         eend $?
     fi
 }
@@ -113,10 +113,10 @@ save() {
 load() {
     local size=$(get_size)
 
-    if ! mountinfo -q ${MOZMOUNT}; then
-        ebegin "Mounting ${MOZMOUNT}"
-        checkpath -d ${MOZMOUNT}
-        mount -t tmpfs -o size=${size}k tmpfs ${MOZMOUNT}
+    if ! mountinfo -q ${MOZ_MOUNT}; then
+        ebegin "Mounting ${MOZ_MOUNT}"
+        checkpath -d ${MOZ_MOUNT}
+        mount -t tmpfs -o size=${size}k tmpfs ${MOZ_MOUNT}
         eend $?
         
         service_set_value mnted YES
@@ -124,7 +124,7 @@ load() {
         service_set_value mnted NO
     fi
 
-    for u in $USERS; do
+    for u in $MOZ_USERS; do
         ebegin "Setting moztmp for user $u"
         eindent
         set_folder $u
