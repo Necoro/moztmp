@@ -14,4 +14,7 @@ MOZ_MOUNTDIR=/tmp/moztmp
 # Enable mounting. Disable this, if $MOZ_MOUNTDIR is already in a ramdisk, f.ex.
 MOZ_MOUNT=YES
 
+# Enable creating the $MOZ_MOUNTDIR. Disable this, if $MOZ_MOUNTDIR is already existing.
+MOZ_MKDIR=YES
+
 # vim:ft=gentoo-conf-d

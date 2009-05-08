@@ -6,6 +6,7 @@ depend() {
 }
 
 MOZ_MOUNT=${MOZ_MOUNT:-YES}
+MOZ_MKDIR=${MOZ_MKDIR:-YES}
 MOZ_MOUNTDIR=${MOZ_MOUNTDIR:-/tmp/moztmp/}
 MOZ_DIR=${MOZ_DIR:-.mozilla}
 MOZ_SAVEDIR=${MOZ_SAVEDIR:-.mozilla_save}
@@ -113,14 +114,24 @@ stop() {
         umount ${MOZ_MOUNTDIR}
         eend $?
     fi
+
+    if yesno $(service_get_value dirmk); then
+        rmdir ${MOZ_MOUNTDIR}
+    fi
 }
 
 start() {
 
+    if yesno ${MOZ_MKDIR}; then
+        checkpath -d ${MOZ_MOUNTDIR}
+        service_set_value dirmk YES
+    else
+        service_set_value dirmk NO
+    fi
+
     if yesno ${MOZ_MOUNT} && ! mountinfo -q ${MOZ_MOUNTDIR}; then
         local size=$(get_size)
         ebegin "Mounting ${MOZ_MOUNTDIR}"
-        checkpath -d ${MOZ_MOUNTDIR}
         mount -t tmpfs -o size=${size}k tmpfs ${MOZ_MOUNTDIR}
         eend $?
         
