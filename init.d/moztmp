@@ -9,10 +9,14 @@ MOZ_MOUNTDIR=${MOZ_MOUNT:-/tmp/moztmp/}
 MOZ_DIR=${MOZ_DIR:-.mozilla}
 MOZ_SAVEDIR=${MOZ_SAVEDIR:-.mozilla_save}
 
+# Return the homedir of a user
 homedir() {
     echo $(eval echo ~$1)
 }
 
+# Return the size needed for the ramdisk
+# Adds up the size of the .mozilla dir for each user - or takes 50MB if it does not exist
+# Finally doubles the size - just to be on the safe side ;)
 get_size() {
     local size=0
     for u in ${MOZ_USERS}; do
@@ -37,7 +41,8 @@ get_size() {
     echo $size
 }
 
-set_folder() {
+# Move folder to mounted dir for one user
+folder_to_mnt() {
     local user=$1
     local mdir=$(homedir $u)/${MOZ_DIR}
     local sdir=$(homedir $u)/${MOZ_SAVEDIR}
@@ -73,7 +78,8 @@ set_folder() {
     return 0
 }
 
-get_folder() {
+# Moves folder from mnt back to the home dir
+folder_to_home() {
     local user=$1
     local mdir=$(homedir $u)/${MOZ_DIR}
     local sdir=$(homedir $u)/${MOZ_SAVEDIR}
@@ -96,7 +102,7 @@ stop() {
     for u in ${MOZ_USERS}; do
         ebegin "Deleting moztmp for user $u"
         eindent
-        get_folder $u
+        folder_to_home $u
         eoutdent
         eend $?
     done
@@ -125,7 +131,7 @@ start() {
     for u in ${MOZ_USERS}; do
         ebegin "Setting moztmp for user $u"
         eindent
-        set_folder $u
+        folder_to_mnt $u
         eoutdent
         eend $?
     done
