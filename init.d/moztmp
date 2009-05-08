@@ -5,7 +5,8 @@ depend() {
     after bootmisc
 }
 
-MOZ_MOUNTDIR=${MOZ_MOUNT:-/tmp/moztmp/}
+MOZ_MOUNT=${MOZ_MOUNT:-YES}
+MOZ_MOUNTDIR=${MOZ_MOUNTDIR:-/tmp/moztmp/}
 MOZ_DIR=${MOZ_DIR:-.mozilla}
 MOZ_SAVEDIR=${MOZ_SAVEDIR:-.mozilla_save}
 
