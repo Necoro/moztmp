@@ -92,6 +92,11 @@ folder_to_home() {
     local sdir="$(homedir $u)/$(service_get_value mozsavedir)"
     local mntdir="$(service_get_value mountdir)/${user}"
 
+    if [ ! -e "$mdir" ]; then
+        eerror "$mdir is not existing. Skipping user $user".
+        return 1
+    fi
+
     if [ ! -L "$mdir" ]; then
         eerror "$mdir is not a link. Skipping user $user."
         return 1
