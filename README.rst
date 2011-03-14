@@ -14,4 +14,4 @@ Things to have in mind before using it
 Install
 -------
 
-Installation is easy: Download the files and put them in ``/etc/init.d/`` and ``/etc/conf.d/`` respectively. Do not forget to change the `conf.d/moztmp` file to fit your needs.
+Installation is easy: Download the files and put them in ``/etc/init.d/`` and ``/etc/conf.d/`` respectively. Do not forget to change the ``conf.d/moztmp`` file to fit your needs.
