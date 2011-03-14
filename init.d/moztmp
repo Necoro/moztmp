@@ -1,7 +1,9 @@
 #!/sbin/runscript
 
 depend() {
-    need localmount
+    # yes - we need 'swap' here
+    # if this is omitted, swap will unmount our tmpfs -.-'
+    need localmount swap
     after bootmisc
 }
 
